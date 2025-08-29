@@ -1,13 +1,19 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
+/// <summary>
+/// Gestiona la pool de balas para optimizar la creación y destrucción de objetos.
+/// Permite obtener balas activas y desactivarlas al salir de pantalla o al terminar su lifetime.
+/// </summary>
 public class BulletPool : MonoBehaviour
 {
-    public static BulletPool Instance; // Singleton para acceder fácil
+    public static BulletPool Instance;
     public GameObject bulletPrefab;
-    public int poolSize = 100;
+    public int poolSize = 200;
+
 
     private List<GameObject> bulletPool;
+
 
     private void Awake()
     {
@@ -16,12 +22,12 @@ public class BulletPool : MonoBehaviour
         else
             Destroy(gameObject);
 
-        // Inicializamos la pool
+
         bulletPool = new List<GameObject>();
         for (int i = 0; i < poolSize; i++)
         {
             GameObject bullet = Instantiate(bulletPrefab);
-            bullet.SetActive(false);
+            bullet.SetActive(false); 
             bulletPool.Add(bullet);
         }
     }
@@ -37,7 +43,6 @@ public class BulletPool : MonoBehaviour
             }
         }
 
-        // Si no hay libres → creamos uno nuevo (expansión controlada)
         GameObject newBullet = Instantiate(bulletPrefab);
         bulletPool.Add(newBullet);
         return newBullet;

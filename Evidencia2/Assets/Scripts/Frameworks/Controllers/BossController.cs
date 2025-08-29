@@ -1,34 +1,26 @@
 using System.Collections;
 using UnityEngine;
 
-[RequireComponent(typeof(SpriteRenderer))]
+/// <summary>
+/// Controla al jefe del juego: 
+/// - Movimiento con teclado (flechas) 
+/// - Disparo de tres patrones mecánicamente distintos (circular, espiral y lineal con movimiento)
+/// </summary>
 public class BossController : MonoBehaviour
 {
+    // --- Movimiento del boss ---
     [Header("Movimiento")]
-    public float speed = 5f;
-    public float xLimit = 7f;
-    public float yLimit = 4f;
+    public float moveSpeed = 5f; 
 
+    // --- Disparo ---
     [Header("Disparo")]
-    public Transform[] firePoints;       // Puntos de disparo para patrón lineal
-    public float bulletSpeed = 5f;       // Velocidad de las balas
+    public Transform[] firePoints;          
+    private int currentPattern = 0;         
 
-    [Header("Colores")]
+    [Header("Colores de patrones")]
     public Color circularColor = Color.red;
     public Color spiralColor = Color.blue;
     public Color lineColor = Color.green;
-
-    private int currentPattern = 0;
-
-    private void OnEnable()
-    {
-        TimeManager.OnPatternChange += NextPattern;
-    }
-
-    private void OnDisable()
-    {
-        TimeManager.OnPatternChange -= NextPattern;
-    }
 
     private void Start()
     {
@@ -40,33 +32,24 @@ public class BossController : MonoBehaviour
         HandleMovement();
     }
 
-    // --- Movimiento con teclado ---
+    // Manejo de movimiento con teclado 
     private void HandleMovement()
     {
         float moveX = 0f;
         float moveY = 0f;
 
+        // Detecta teclas de flecha
         if (Input.GetKey(KeyCode.RightArrow)) moveX = 1f;
-        if (Input.GetKey(KeyCode.LeftArrow))  moveX = -1f;
-        if (Input.GetKey(KeyCode.UpArrow))    moveY = 1f;
-        if (Input.GetKey(KeyCode.DownArrow))  moveY = -1f;
+        if (Input.GetKey(KeyCode.LeftArrow)) moveX = -1f;
+        if (Input.GetKey(KeyCode.UpArrow)) moveY = 1f;
+        if (Input.GetKey(KeyCode.DownArrow)) moveY = -1f;
 
-        Vector3 movement = new Vector3(moveX, moveY, 0f) * speed * Time.deltaTime;
-        transform.Translate(movement);
+        Vector3 moveDir = new Vector3(moveX, moveY, 0).normalized;
 
-        // Limitar movimiento dentro de la pantalla
-        float clampedX = Mathf.Clamp(transform.position.x, -xLimit, xLimit);
-        float clampedY = Mathf.Clamp(transform.position.y, -yLimit, yLimit);
-        transform.position = new Vector3(clampedX, clampedY, transform.position.z);
+        transform.Translate(moveDir * moveSpeed * Time.deltaTime);
     }
 
-    // --- Cambiar patrón ---
-    private void NextPattern()
-    {
-        currentPattern = (currentPattern + 1) % 3;
-    }
-
-    // --- Coroutine principal que controla los patrones ---
+    // Patrones
     private IEnumerator PatternRoutine()
     {
         while (true)
@@ -77,11 +60,13 @@ public class BossController : MonoBehaviour
                 case 1: yield return StartCoroutine(PatternSpiral(10f)); break;
                 case 2: yield return StartCoroutine(PatternLineMoving(10f)); break;
             }
-            NextPattern();
+
+            // Cambia al siguiente patrón (rotativo)
+            currentPattern = (currentPattern + 1) % 3;
         }
     }
 
-    // --- Patrón 1: Circular ---
+    // Patron 1
     private IEnumerator PatternCircular(float duration)
     {
         float timer = 0f;
@@ -90,18 +75,20 @@ public class BossController : MonoBehaviour
         while (timer < duration)
         {
             float rotationOffset = Time.time * 50f;
+
             for (int i = 0; i < bulletsPerShot; i++)
             {
                 float angle = i * (360f / bulletsPerShot) + rotationOffset;
                 Vector3 dir = Quaternion.Euler(0, 0, angle) * Vector3.up;
                 SpawnBullet(dir, transform.position, circularColor);
             }
+
             timer += 0.5f;
             yield return new WaitForSeconds(0.5f);
         }
     }
 
-    // --- Patrón 2: Espiral ---
+    // Patron 2
     private IEnumerator PatternSpiral(float duration)
     {
         float timer = 0f;
@@ -116,22 +103,23 @@ public class BossController : MonoBehaviour
                 Vector3 dir = Quaternion.Euler(0, 0, currentAngle + i * angleStep) * Vector3.up;
                 SpawnBullet(dir, transform.position, spiralColor);
             }
-            currentAngle += 15f;
+
+            currentAngle += 15f; 
             timer += 0.2f;
             yield return new WaitForSeconds(0.2f);
         }
     }
 
-    // --- Patrón 3: Lineal con movimiento ---
+    // Patron 3
     private IEnumerator PatternLineMoving(float duration)
     {
         float timer = 0f;
-        float moveAmplitude = 2f;
-        float moveSpeed = 2f;
+        float moveAmplitude = 2f;       
+        float moveSpeedPattern = 2f;    
 
         while (timer < duration)
         {
-            float offsetX = Mathf.Sin(Time.time * moveSpeed) * moveAmplitude;
+            float offsetX = Mathf.Sin(Time.time * moveSpeedPattern) * moveAmplitude;
             Vector3 spawnPos = transform.position + new Vector3(offsetX, 0, 0);
 
             foreach (var point in firePoints)
@@ -146,7 +134,7 @@ public class BossController : MonoBehaviour
         }
     }
 
-    // --- Función que instancia y activa la bala ---
+    // Activacion de balas
     private void SpawnBullet(Vector3 direction, Vector3 position, Color color)
     {
         GameObject bullet = BulletPool.Instance.GetBullet();
@@ -155,13 +143,10 @@ public class BossController : MonoBehaviour
 
         Bullet b = bullet.GetComponent<Bullet>();
         b.SetMovementDirection(direction);
-        b.SetMovementSpeed(bulletSpeed);
 
-        // Color visual
         SpriteRenderer sr = bullet.GetComponent<SpriteRenderer>();
         if (sr != null) sr.color = color;
 
-        // Trail opcional
         TrailRenderer tr = bullet.GetComponent<TrailRenderer>();
         if (tr != null)
         {
